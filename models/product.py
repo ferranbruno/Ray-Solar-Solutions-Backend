@@ -1,4 +1,4 @@
-from app import db
+from extensions import db
 from datetime import datetime
 
 class Product(db.Model):
@@ -12,8 +12,8 @@ class Product(db.Model):
     wattage = db.Column(db.String(20), nullable=True)
     stock = db.Column(db.Integer, default=0)
     rating = db.Column(db.Float, default=0.0)
-    image_url = db.Column(db.String(500), nullable=True)
-    features = db.Column(db.JSON, default=[])
+    image_path = db.Column(db.String(500), nullable=True)
+    features = db.Column(db.JSON, default=list)
     provider_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -33,7 +33,7 @@ class Product(db.Model):
             'wattage': self.wattage,
             'stock': self.stock,
             'rating': self.rating,
-            'image_url': self.image_url,
+            'image_path': self.image_path,
             'features': self.features,
             'provider_id': self.provider_id,
             'is_active': self.is_active,

@@ -30,3 +30,5 @@ wheels/
 .pytest_cache/
 htmlcov/
 .coverage
+*.db
+instance/

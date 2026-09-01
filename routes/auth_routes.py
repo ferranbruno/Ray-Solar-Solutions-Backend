@@ -1,125 +1,82 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from app import db
-from models.product import Product
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
+from extensions import db
 from models.user import User, UserRole
+from datetime import timedelta
 
-product_bp = Blueprint('products', __name__)
+auth_bp = Blueprint('auth', __name__)
 
-@product_bp.route('', methods=['GET'])
-def get_products():
-    """Get all active products"""
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    category = request.args.get('category', None, type=str)
-    
-    query = Product.query.filter_by(is_active=True)
-    
-    if category:
-        query = query.filter_by(category=category)
-    
-    products = query.paginate(page=page, per_page=per_page)
-    
+@auth_bp.route('/register', methods=['POST'])
+def register():
+    """Register a new user"""
+    data = request.get_json()
+
+    if not data or not data.get('email') or not data.get('password'):
+        return {'error': 'Email and password are required'}, 400
+
+    if User.query.filter_by(email=data['email']).first():
+        return {'error': 'User already exists'}, 409
+
+    try:
+        user = User(
+            email=data['email'],
+            first_name=data.get('first_name', ''),
+            last_name=data.get('last_name', ''),
+            phone=data.get('phone', ''),
+            role=UserRole[data.get('role', 'CUSTOMER').upper()]
+        )
+        user.set_password(data['password'])
+
+        db.session.add(user)
+        db.session.commit()
+
+        return {'message': 'User created successfully', 'user': user.to_dict()}, 201
+    except Exception as e:
+        db.session.rollback()
+        return {'error': str(e)}, 500
+
+@auth_bp.route('/login', methods=['POST'])
+def login():
+    """User login and token generation"""
+    data = request.get_json()
+
+    if not data or not data.get('email') or not data.get('password'):
+        return {'error': 'Email and password are required'}, 400
+
+    user = User.query.filter_by(email=data['email']).first()
+
+    if not user or not user.check_password(data['password']):
+        return {'error': 'Invalid email or password'}, 401
+
+    if not user.is_active:
+        return {'error': 'User account is inactive'}, 403
+
+    access_token = create_access_token(identity=user.id)
+    refresh_token = create_refresh_token(identity=user.id)
+
     return {
-        'products': [p.to_dict() for p in products.items],
-        'total': products.total,
-        'pages': products.pages,
-        'current_page': page
+        'message': 'Login successful',
+        'access_token': access_token,
+        'refresh_token': refresh_token,
+        'user': user.to_dict()
     }, 200
 
-@product_bp.route('/<int:product_id>', methods=['GET'])
-def get_product(product_id):
-    """Get product by ID"""
-    product = Product.query.get(product_id)
-    
-    if not product or not product.is_active:
-        return {'error': 'Product not found'}, 404
-    
-    return {'product': product.to_dict()}, 200
-
-@product_bp.route('', methods=['POST'])
+@auth_bp.route('/me', methods=['GET'])
 @jwt_required()
-def create_product():
-    """Create new product (provider only)"""
+def get_current_user():
+    """Get current authenticated user"""
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
-    
-    if not user or user.role != UserRole.PROVIDER:
-        return {'error': 'Only providers can create products'}, 403
-    
-    data = request.get_json()
-    
-    if not data or not data.get('name') or not data.get('price'):
-        return {'error': 'Name and price are required'}, 400
-    
-    try:
-        product = Product(
-            name=data['name'],
-            category=data.get('category', ''),
-            description=data.get('description', ''),
-            price=data['price'],
-            wattage=data.get('wattage', ''),
-            stock=data.get('stock', 0),
-            image_url=data.get('image_url', ''),
-            features=data.get('features', []),
-            provider_id=user_id
-        )
-        
-        db.session.add(product)
-        db.session.commit()
-        
-        return {'message': 'Product created', 'product': product.to_dict()}, 201
-    except Exception as e:
-        db.session.rollback()
-        return {'error': str(e)}, 500
 
-@product_bp.route('/<int:product_id>', methods=['PUT'])
-@jwt_required()
-def update_product(product_id):
-    """Update product (provider only)"""
-    user_id = get_jwt_identity()
-    product = Product.query.get(product_id)
-    
-    if not product:
-        return {'error': 'Product not found'}, 404
-    
-    if product.provider_id != user_id:
-        return {'error': 'You can only update your own products'}, 403
-    
-    data = request.get_json()
-    
-    try:
-        product.name = data.get('name', product.name)
-        product.price = data.get('price', product.price)
-        product.stock = data.get('stock', product.stock)
-        product.description = data.get('description', product.description)
-        product.image_url = data.get('image_url', product.image_url)
-        product.features = data.get('features', product.features)
-        
-        db.session.commit()
-        
-        return {'message': 'Product updated', 'product': product.to_dict()}, 200
-    except Exception as e:
-        db.session.rollback()
-        return {'error': str(e)}, 500
+    if not user:
+        return {'error': 'User not found'}, 404
 
-@product_bp.route('/<int:product_id>', methods=['DELETE'])
-@jwt_required()
-def delete_product(product_id):
-    """Delete product (provider only)"""
+    return {'user': user.to_dict()}, 200
+
+@auth_bp.route('/refresh', methods=['POST'])
+@jwt_required(refresh=True)
+def refresh_token():
+    """Refresh access token"""
     user_id = get_jwt_identity()
-    product = Product.query.get(product_id)
-    
-    if not product:
-        return {'error': 'Product not found'}, 404
-    
-    if product.provider_id != user_id:
-        return {'error': 'You can only delete your own products'}, 403
-    
-    try:
-        db.session.delete(product)
-        db.session.commit()
-        return {'message': 'Product deleted'}, 200
-    except Exception as e:
-        db.session.rollback()
-        return {'error': str(e)}, 500
+    access_token = create_access_token(identity=user_id)
+    return {'access_token': access_token}, 200

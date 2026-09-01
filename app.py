@@ -1,14 +1,10 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager
 from config import config
+from extensions import db, jwt
 import os
 
 # Initialize extensions
-db = SQLAlchemy()
-jwt = JWTManager()
-
 def create_app(config_name=None):
     """Application factory"""
     if config_name is None:
@@ -24,7 +20,7 @@ def create_app(config_name=None):
     # Enable CORS
     CORS(app, resources={
         r"/api/*": {
-            "origins": [os.getenv('FRONTEND_URL', 'http://localhost:5174')],
+            "origins": [os.getenv('FRONTEND_URL', 'http://localhost:5173')],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True
@@ -44,10 +40,21 @@ def create_app(config_name=None):
     @app.route('/api/health', methods=['GET'])
     def health_check():
         return {'status': 'Backend is running', 'version': '1.0.0'}, 200
+
+    @app.route('/uploads/products/<path:filename>')
+    def uploaded_product_image(filename):
+        upload_folder = os.path.join(app.root_path, 'uploads', 'products')
+        return send_from_directory(upload_folder, filename)
     
     # Create database tables
     with app.app_context():
         db.create_all()
+        product_columns = {
+            column['name'] for column in db.session.execute(db.text('PRAGMA table_info(products)')).mappings()
+        }
+        if 'image_url' in product_columns and 'image_path' not in product_columns:
+            db.session.execute(db.text('ALTER TABLE products RENAME COLUMN image_url TO image_path'))
+            db.session.commit()
     
     return app
 

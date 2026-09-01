@@ -17,7 +17,7 @@ class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'DATABASE_URL',
-        'postgresql://postgres:password@localhost:5432/ray_solar'
+        'sqlite:///ray_solar.db'
     )
 
 class ProductionConfig(Config):
