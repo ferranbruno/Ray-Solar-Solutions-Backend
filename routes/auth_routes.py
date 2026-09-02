@@ -77,6 +77,32 @@ def get_current_user():
 
     return {'user': user.to_dict()}, 200
 
+@auth_bp.route('/me', methods=['PUT'])
+@jwt_required()
+def update_current_user():
+    """Update current user's profile"""
+    user_id = int(get_jwt_identity())
+    user = User.query.get(user_id)
+
+    if not user:
+        return {'error': 'User not found'}, 404
+
+    data = request.get_json()
+
+    try:
+        if 'first_name' in data:
+            user.first_name = data['first_name']
+        if 'last_name' in data:
+            user.last_name = data['last_name']
+        if 'phone' in data:
+            user.phone = data['phone']
+
+        db.session.commit()
+        return {'message': 'Profile updated', 'user': user.to_dict()}, 200
+    except Exception as e:
+        db.session.rollback()
+        return {'error': str(e)}, 500
+
 @auth_bp.route('/refresh', methods=['POST'])
 @jwt_required(refresh=True)
 def refresh_token():

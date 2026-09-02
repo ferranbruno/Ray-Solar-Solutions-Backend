@@ -1,6 +1,7 @@
 from extensions import db
 from datetime import datetime
 from enum import Enum
+from models.product import Product
 
 class OrderStatus(Enum):
     PENDING = 'pending'
@@ -48,9 +49,11 @@ class OrderItem(db.Model):
     
     def to_dict(self):
         """Convert order item to dictionary"""
+        product = Product.query.get(self.product_id) if self.product_id else None
         return {
             'id': self.id,
             'product_id': self.product_id,
+            'product_name': product.name if product else '',
             'quantity': self.quantity,
             'unit_price': self.unit_price,
         }

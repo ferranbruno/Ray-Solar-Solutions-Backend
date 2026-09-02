@@ -57,6 +57,32 @@ def update_user(user_id):
         db.session.rollback()
         return {'error': str(e)}, 500
 
+@admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@admin_required
+def delete_user(user_id):
+    """Delete a user without removing related products or order history."""
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(user_id)
+
+    if not user:
+        return {'error': 'User not found'}, 404
+
+    if user.id == current_user_id:
+        return {'error': 'You cannot delete your own admin account'}, 400
+
+    if user.products or user.orders:
+        return {
+            'error': 'This user cannot be deleted because they have related products or orders. Suspend the account instead.'
+        }, 409
+
+    try:
+        db.session.delete(user)
+        db.session.commit()
+        return {'message': 'User deleted'}, 200
+    except Exception as e:
+        db.session.rollback()
+        return {'error': str(e)}, 500
+
 @admin_bp.route('/providers', methods=['GET'])
 @admin_required
 def get_providers():
