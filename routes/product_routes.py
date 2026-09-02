@@ -63,7 +63,7 @@ def get_product(product_id):
 @jwt_required()
 def create_product():
     """Create new product (provider only)"""
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
 
     if not user or user.role != UserRole.PROVIDER:
@@ -109,7 +109,7 @@ def create_product():
 @jwt_required()
 def update_product(product_id):
     """Update product (provider only)"""
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     product = Product.query.get(product_id)
 
     if not product:
@@ -153,7 +153,7 @@ def update_product(product_id):
 @jwt_required()
 def delete_product(product_id):
     """Delete product (provider only)"""
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     product = Product.query.get(product_id)
 
     if not product:

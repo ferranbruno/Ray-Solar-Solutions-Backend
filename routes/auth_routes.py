@@ -18,12 +18,16 @@ def register():
         return {'error': 'User already exists'}, 409
 
     try:
+        requested_role = data.get('role', 'CUSTOMER').upper()
+        if requested_role not in {UserRole.CUSTOMER.name, UserRole.PROVIDER.name}:
+            return {'error': 'Public registration is limited to customer or provider accounts'}, 400
+
         user = User(
             email=data['email'],
             first_name=data.get('first_name', ''),
             last_name=data.get('last_name', ''),
             phone=data.get('phone', ''),
-            role=UserRole[data.get('role', 'CUSTOMER').upper()]
+            role=UserRole[requested_role]
         )
         user.set_password(data['password'])
 
@@ -51,8 +55,8 @@ def login():
     if not user.is_active:
         return {'error': 'User account is inactive'}, 403
 
-    access_token = create_access_token(identity=user.id)
-    refresh_token = create_refresh_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
+    refresh_token = create_refresh_token(identity=str(user.id))
 
     return {
         'message': 'Login successful',
@@ -65,7 +69,7 @@ def login():
 @jwt_required()
 def get_current_user():
     """Get current authenticated user"""
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
 
     if not user:
@@ -78,5 +82,5 @@ def get_current_user():
 def refresh_token():
     """Refresh access token"""
     user_id = get_jwt_identity()
-    access_token = create_access_token(identity=user_id)
+    access_token = create_access_token(identity=str(user_id))
     return {'access_token': access_token}, 200

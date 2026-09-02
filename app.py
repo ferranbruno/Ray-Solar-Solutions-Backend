@@ -4,23 +4,39 @@ from config import config
 from extensions import db, jwt
 import os
 
+
+def get_allowed_frontend_origins():
+    env_value = os.getenv('FRONTEND_URLS', '')
+    if env_value:
+        return [origin.strip() for origin in env_value.split(',') if origin.strip()]
+
+    return [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:5174',
+        'http://127.0.0.1:5174',
+        'http://0.0.0.0:5173',
+        'http://0.0.0.0:5174',
+    ]
+
+
 # Initialize extensions
 def create_app(config_name=None):
     """Application factory"""
     if config_name is None:
         config_name = os.getenv('FLASK_ENV', 'development')
-    
+
     app = Flask(__name__)
     app.config.from_object(config[config_name])
-    
+
     # Initialize extensions with app
     db.init_app(app)
     jwt.init_app(app)
-    
+
     # Enable CORS
     CORS(app, resources={
         r"/api/*": {
-            "origins": [os.getenv('FRONTEND_URL', 'http://localhost:5173')],
+            "origins": get_allowed_frontend_origins(),
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True

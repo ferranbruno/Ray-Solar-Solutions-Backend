@@ -12,7 +12,7 @@ def admin_required(f):
     @wraps(f)
     @jwt_required()
     def decorated_function(*args, **kwargs):
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
         user = User.query.get(user_id)
         if not user or user.role != UserRole.ADMIN:
             return {'error': 'Admin access required'}, 403

@@ -55,8 +55,8 @@ def login():
         return {'error': 'User account is inactive'}, 403
     
     # Create tokens
-    access_token = create_access_token(identity=user.id)
-    refresh_token = create_refresh_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
+    refresh_token = create_refresh_token(identity=str(user.id))
     
     return {
         'message': 'Login successful',
@@ -69,7 +69,7 @@ def login():
 @jwt_required()
 def get_current_user():
     """Get current authenticated user"""
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
     
     if not user:
@@ -82,5 +82,5 @@ def get_current_user():
 def refresh_token():
     """Refresh access token"""
     user_id = get_jwt_identity()
-    access_token = create_access_token(identity=user_id)
+    access_token = create_access_token(identity=str(user_id))
     return {'access_token': access_token}, 200
