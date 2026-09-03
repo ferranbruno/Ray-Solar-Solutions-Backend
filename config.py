@@ -30,6 +30,7 @@ class ProductionConfig(Config):
         'pool_size': 5,
         'pool_recycle': 300,
         'pool_pre_ping': True,
+        'connect_args': {'connect_timeout': 10},
     }
 
 class TestingConfig(Config):
