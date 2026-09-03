@@ -37,7 +37,7 @@ class ProductionConfig(Config):
         'pool_pre_ping': True,
         'pool_timeout': 15,
         'connect_args': {
-            'sslmode': 'disable',
+            'sslmode': 'require',
             'connect_timeout': 10,
         },
     }
