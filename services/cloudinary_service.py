@@ -1,11 +1,9 @@
 import os
-import cloudinary
-import cloudinary.uploader
-from flask import current_app
 
 
 def init_cloudinary():
     """Initialize Cloudinary with env vars"""
+    import cloudinary
     cloudinary.config(
         cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
         api_key=os.getenv('CLOUDINARY_API_KEY'),
@@ -16,6 +14,8 @@ def init_cloudinary():
 
 def upload_image(file, folder='ray-solar'):
     """Upload an image file to Cloudinary and return the URL"""
+    import cloudinary.uploader
+
     if not file or file.filename == '':
         return None
 
@@ -34,6 +34,8 @@ def upload_image(file, folder='ray-solar'):
 
 def delete_image(url):
     """Delete an image from Cloudinary by URL"""
+    import cloudinary.uploader
+
     if not url or not url.startswith('http'):
         return False
     try:

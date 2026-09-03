@@ -2,7 +2,6 @@ from flask import Flask
 from flask_cors import CORS
 from config import config
 from extensions import db, jwt
-from services.cloudinary_service import init_cloudinary
 import os
 
 
@@ -33,7 +32,11 @@ def create_app(config_name=None):
     # Initialize extensions with app
     db.init_app(app)
     jwt.init_app(app)
-    init_cloudinary()
+    try:
+        from services.cloudinary_service import init_cloudinary
+        init_cloudinary()
+    except ImportError:
+        pass
 
     # Enable CORS
     CORS(app, resources={
