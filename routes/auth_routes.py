@@ -1,16 +1,14 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
-from werkzeug.utils import secure_filename
 from extensions import db
 from models.user import User, UserRole
 from models.verification_token import VerificationToken
 from services.email import send_verification_email, send_password_reset_email
+from services.cloudinary_service import upload_image, delete_image
 from datetime import timedelta
 import os
 
 auth_bp = Blueprint('auth', __name__)
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads', 'profiles')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
@@ -169,12 +167,9 @@ def update_current_user():
 
             profile_file = request.files.get('profile_image')
             if profile_file and profile_file.filename:
-                from werkzeug.utils import secure_filename
-                import uuid
-                ext = profile_file.filename.rsplit('.', 1)[1].lower() if '.' in profile_file.filename else 'jpg'
-                filename = f"{uuid.uuid4().hex}.{ext}"
-                profile_file.save(os.path.join(UPLOAD_FOLDER, filename))
-                user.profile_image = f"uploads/profiles/{filename}"
+                if user.profile_image:
+                    delete_image(user.profile_image)
+                user.profile_image = upload_image(profile_file, folder='ray-solar/profiles')
         else:
             data = request.get_json() or {}
             if 'first_name' in data:

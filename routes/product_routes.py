@@ -1,33 +1,13 @@
-import os
 from flask import Blueprint, request
-from werkzeug.utils import secure_filename
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 from models.user import User, UserRole
 from models.product import Product
 from models.order import Order, OrderItem
+from services.cloudinary_service import upload_image, delete_image
 from datetime import datetime, timedelta
 
 product_bp = Blueprint('products', __name__)
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads', 'products')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
-
-
-def save_uploaded_image(file):
-    if file is None or file.filename == '':
-        return None
-
-    extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
-    if extension not in ALLOWED_EXTENSIONS:
-        raise ValueError('Only PNG, JPG, JPEG, and WEBP images are allowed')
-
-    filename = secure_filename(file.filename)
-    unique_name = f"{os.urandom(8).hex()}_{filename}"
-    file_path = os.path.join(UPLOAD_FOLDER, unique_name)
-    file.save(file_path)
-    return os.path.join('uploads', 'products', unique_name)
 
 
 @product_bp.route('', methods=['GET'])
@@ -79,7 +59,7 @@ def create_product():
     image_file = request.files.get('image')
 
     try:
-        image_path = save_uploaded_image(image_file)
+        image_url = upload_image(image_file, folder='ray-solar/products')
         product = Product(
             name=name,
             category=request.form.get('category', ''),
@@ -87,7 +67,7 @@ def create_product():
             price=float(price),
             wattage=request.form.get('wattage', ''),
             stock=int(request.form.get('stock', 0)),
-            image_path=image_path,
+            image_path=image_url,
             features=request.form.get('features', '[]'),
             provider_id=user_id
         )
@@ -142,7 +122,9 @@ def update_product(product_id):
 
         image_file = request.files.get('image')
         if image_file and image_file.filename:
-            product.image_path = save_uploaded_image(image_file)
+            if product.image_path:
+                delete_image(product.image_path)
+            product.image_path = upload_image(image_file, folder='ray-solar/products')
 
         db.session.commit()
 
@@ -165,6 +147,8 @@ def delete_product(product_id):
         return {'error': 'You can only delete your own products'}, 403
 
     try:
+        if product.image_path:
+            delete_image(product.image_path)
         db.session.delete(product)
         db.session.commit()
         return {'message': 'Product deleted'}, 200

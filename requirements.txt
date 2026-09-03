@@ -8,3 +8,4 @@ bcrypt==4.1.1
 gunicorn==21.2.0
 psycopg2-binary==2.9.10
 requests==2.32.3
+cloudinary==1.40.0
