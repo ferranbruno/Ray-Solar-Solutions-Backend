@@ -1,35 +1,38 @@
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 
 
 def send_email(to_email, subject, html_body):
-    """Send an email via Gmail SMTP."""
-    smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-    smtp_port = int(os.getenv('SMTP_PORT', '587'))
-    smtp_user = os.getenv('SMTP_USER', '')
-    smtp_pass = os.getenv('SMTP_PASSWORD', '')
+    """Send an email via Resend HTTPS API (works on Render free tier)."""
+    api_key = os.getenv('RESEND_API_KEY', '')
     from_name = os.getenv('EMAIL_FROM_NAME', 'Ray Solar Solutions')
-    from_email = os.getenv('EMAIL_FROM_ADDRESS', smtp_user)
+    from_email = os.getenv('EMAIL_FROM_ADDRESS', 'onboarding@resend.dev')
 
-    if not smtp_user or not smtp_pass:
-        print(f'[EMAIL SKIPPED] No SMTP credentials. Would send "{subject}" to {to_email}')
+    if not api_key:
+        print(f'[EMAIL SKIPPED] No RESEND_API_KEY. Would send "{subject}" to {to_email}')
         return False
 
-    msg = MIMEMultipart('alternative')
-    msg['From'] = f'{from_name} <{from_email}>'
-    msg['To'] = to_email
-    msg['Subject'] = subject
-    msg.attach(MIMEText(html_body, 'html'))
-
     try:
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(from_email, to_email, msg.as_string())
-        print(f'[EMAIL SENT] "{subject}" to {to_email}')
-        return True
+        resp = requests.post(
+            'https://api.resend.com/emails',
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'from': f'{from_name} <{from_email}>',
+                'to': [to_email],
+                'subject': subject,
+                'html': html_body,
+            },
+            timeout=15,
+        )
+        if resp.ok:
+            print(f'[EMAIL SENT] "{subject}" to {to_email}')
+            return True
+        else:
+            print(f'[EMAIL ERROR] {resp.status_code} {resp.text}')
+            return False
     except Exception as e:
         print(f'[EMAIL ERROR] {e}')
         return False
