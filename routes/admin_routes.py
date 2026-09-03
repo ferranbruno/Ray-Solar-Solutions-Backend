@@ -4,6 +4,7 @@ from extensions import db
 from models.user import User, UserRole
 from models.product import Product
 from models.order import Order, OrderItem
+from models.contact_message import ContactMessage
 from datetime import datetime, timedelta
 
 admin_bp = Blueprint('admin', __name__)
@@ -175,3 +176,49 @@ def get_analytics():
         'daily_users': daily_users,
         'day_labels': day_labels,
     }, 200
+
+
+@admin_bp.route('/messages', methods=['GET'])
+@admin_required
+def get_messages():
+    """Get all contact messages (admin only)"""
+    messages = ContactMessage.query.order_by(ContactMessage.created_at.desc()).all()
+    return {'messages': [m.to_dict() for m in messages]}, 200
+
+
+@admin_bp.route('/messages/<int:message_id>', methods=['PUT'])
+@admin_required
+def update_message(message_id):
+    """Mark a contact message as read (admin only)"""
+    msg = ContactMessage.query.get(message_id)
+
+    if not msg:
+        return {'error': 'Message not found'}, 404
+
+    try:
+        data = request.get_json() or {}
+        if 'is_read' in data:
+            msg.is_read = data['is_read']
+        db.session.commit()
+        return {'message': 'Updated', 'data': msg.to_dict()}, 200
+    except Exception as e:
+        db.session.rollback()
+        return {'error': str(e)}, 500
+
+
+@admin_bp.route('/messages/<int:message_id>', methods=['DELETE'])
+@admin_required
+def delete_message(message_id):
+    """Delete a contact message (admin only)"""
+    msg = ContactMessage.query.get(message_id)
+
+    if not msg:
+        return {'error': 'Message not found'}, 404
+
+    try:
+        db.session.delete(msg)
+        db.session.commit()
+        return {'message': 'Deleted'}, 200
+    except Exception as e:
+        db.session.rollback()
+        return {'error': str(e)}, 500

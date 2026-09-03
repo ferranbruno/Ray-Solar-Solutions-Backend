@@ -3,8 +3,32 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 from models.user import User
 from models.ticket import Ticket, TicketStatus
+from models.contact_message import ContactMessage
 
 support_bp = Blueprint('support', __name__)
+
+
+@support_bp.route('/contact', methods=['POST'])
+def send_contact_message():
+    """Public endpoint to send a contact message"""
+    data = request.get_json()
+
+    if not data or not data.get('name') or not data.get('email') or not data.get('subject') or not data.get('message'):
+        return {'error': 'Name, email, subject and message are required'}, 400
+
+    try:
+        msg = ContactMessage(
+            name=data['name'],
+            email=data['email'],
+            subject=data['subject'],
+            message=data['message'],
+        )
+        db.session.add(msg)
+        db.session.commit()
+        return {'message': 'Message sent successfully'}, 201
+    except Exception as e:
+        db.session.rollback()
+        return {'error': str(e)}, 500
 
 
 @support_bp.route('', methods=['GET'])
