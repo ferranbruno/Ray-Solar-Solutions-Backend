@@ -71,27 +71,12 @@ def create_app(config_name=None):
         upload_folder = os.path.join(app.root_path, 'uploads', 'profiles')
         return send_from_directory(upload_folder, filename)
     
-    # Create database tables
-    with app.app_context():
-        try:
-            db.create_all()
+    if os.getenv('FLASK_ENV') != 'production':
+        with app.app_context():
             try:
-                db.session.execute(db.text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE"))
-                db.session.execute(db.text("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image VARCHAR(500)"))
-                db.session.commit()
+                db.create_all()
             except Exception:
-                db.session.rollback()
-            try:
-                product_columns = {
-                    column['name'] for column in db.session.execute(db.text("SELECT column_name AS name FROM information_schema.columns WHERE table_name = 'products'")).mappings()
-                }
-                if 'image_url' in product_columns and 'image_path' not in product_columns:
-                    db.session.execute(db.text('ALTER TABLE products RENAME COLUMN image_url TO image_path'))
-                    db.session.commit()
-            except Exception:
-                db.session.rollback()
-        except Exception:
-            pass
+                pass
     
     return app
 

@@ -25,12 +25,18 @@ class ProductionConfig(Config):
     DEBUG = False
     _raw_url = os.getenv('DATABASE_URL', '')
     # Render provides postgres:// but SQLAlchemy 2.x needs postgresql://
-    SQLALCHEMY_DATABASE_URI = _raw_url.replace('postgres://', 'postgresql://', 1) if _raw_url else None
+    _db_url = _raw_url.replace('postgres://', 'postgresql://', 1) if _raw_url else ''
+    # Ensure sslmode=require is present for Render PostgreSQL
+    if _db_url and 'sslmode=' not in _db_url:
+        separator = '&' if '?' in _db_url else '?'
+        _db_url += f'{separator}sslmode=require'
+    SQLALCHEMY_DATABASE_URI = _db_url or None
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_size': 5,
-        'pool_recycle': 300,
+        'pool_size': 2,
+        'max_overflow': 2,
+        'pool_recycle': 120,
         'pool_pre_ping': True,
-        'connect_args': {'connect_timeout': 10},
+        'pool_timeout': 10,
     }
 
 class TestingConfig(Config):
