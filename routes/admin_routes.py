@@ -8,18 +8,7 @@ from datetime import datetime, timedelta
 
 admin_bp = Blueprint('admin', __name__)
 
-def admin_required(f):
-    """Decorator to require admin role"""
-    from functools import wraps
-    @wraps(f)
-    @jwt_required()
-    def decorated_function(*args, **kwargs):
-        user_id = int(get_jwt_identity())
-        user = User.query.get(user_id)
-        if not user or user.role != UserRole.ADMIN:
-            return {'error': 'Admin access required'}, 403
-        return f(*args, **kwargs)
-    return decorated_function
+
 
 @admin_bp.route('/users', methods=['GET'])
 @admin_required
