@@ -5,6 +5,7 @@ from models.user import User
 from models.product import Product
 from models.order import Order, OrderItem
 from services.mpesa import MPesaService
+from services.email import send_order_confirmation_email, send_order_status_email
 import uuid
 
 order_bp = Blueprint('orders', __name__)
@@ -86,6 +87,17 @@ def checkout():
             stk_response = mpesa.stk_push(phone, total, order.order_number)
             print(f"STK Push response: {stk_response}")
             if stk_response.get('ResponseCode') == '0':
+                order_data = order.to_dict()
+                order_data['items'] = [
+                    {
+                        'name': Product.query.get(oi['product_id']).name if Product.query.get(oi['product_id']) else 'Product',
+                        'quantity': oi['quantity'],
+                        'total': int(oi['unit_price'] * oi['quantity']),
+                    }
+                    for oi in order_items
+                ]
+                order_data['total_amount'] = int(total)
+                send_order_confirmation_email(user.email, order_data)
                 return {
                     'message': 'Order placed. Check your phone for M-Pesa prompt.',
                     'order': order.to_dict(),
@@ -130,6 +142,9 @@ def mpesa_callback():
             order.status = 'confirmed'
             order.notes = (order.notes or '') + f' | M-Pesa confirmed: {result_desc}'
             db.session.commit()
+            customer = User.query.get(order.customer_id)
+            if customer:
+                send_order_status_email(customer.email, order.order_number, 'confirmed')
     else:
         # Payment failed — restore stock
         order = Order.query.filter_by(order_number=account_ref).first()
@@ -141,6 +156,9 @@ def mpesa_callback():
             order.status = 'cancelled'
             order.notes = (order.notes or '') + f' | M-Pesa failed: {result_desc}'
             db.session.commit()
+            customer = User.query.get(order.customer_id)
+            if customer:
+                send_order_status_email(customer.email, order.order_number, 'cancelled')
 
     return {'ResultCode': 0, 'ResultDesc': 'OK'}
 

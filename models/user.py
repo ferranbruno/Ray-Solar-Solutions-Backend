@@ -18,6 +18,7 @@ class User(db.Model):
     phone = db.Column(db.String(20), nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
     profile_image = db.Column(db.String(500), nullable=True)
+    email_verified = db.Column(db.Boolean, default=False)
     role = db.Column(db.Enum(UserRole), nullable=False, default=UserRole.CUSTOMER)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -50,6 +51,7 @@ class User(db.Model):
             'last_name': self.last_name,
             'phone': self.phone,
             'profile_image': self.profile_image,
+            'email_verified': self.email_verified,
             'role': self.role.value,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat(),
