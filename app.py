@@ -75,14 +75,20 @@ def create_app(config_name=None):
     with app.app_context():
         db.create_all()
         try:
+            db.session.execute(db.text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE"))
+            db.session.execute(db.text("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image VARCHAR(500)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        try:
             product_columns = {
-                column['name'] for column in db.session.execute(db.text('PRAGMA table_info(products)')).mappings()
+                column['name'] for column in db.session.execute(db.text("SELECT column_name AS name FROM information_schema.columns WHERE table_name = 'products'")).mappings()
             }
             if 'image_url' in product_columns and 'image_path' not in product_columns:
                 db.session.execute(db.text('ALTER TABLE products RENAME COLUMN image_url TO image_path'))
                 db.session.commit()
         except Exception:
-            pass
+            db.session.rollback()
     
     return app
 
