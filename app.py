@@ -74,15 +74,21 @@ def create_app(config_name=None):
     # Create database tables
     with app.app_context():
         db.create_all()
-        product_columns = {
-            column['name'] for column in db.session.execute(db.text('PRAGMA table_info(products)')).mappings()
-        }
-        if 'image_url' in product_columns and 'image_path' not in product_columns:
-            db.session.execute(db.text('ALTER TABLE products RENAME COLUMN image_url TO image_path'))
-            db.session.commit()
+        try:
+            product_columns = {
+                column['name'] for column in db.session.execute(db.text('PRAGMA table_info(products)')).mappings()
+            }
+            if 'image_url' in product_columns and 'image_path' not in product_columns:
+                db.session.execute(db.text('ALTER TABLE products RENAME COLUMN image_url TO image_path'))
+                db.session.commit()
+        except Exception:
+            pass
     
     return app
 
 if __name__ == '__main__':
     app = create_app()
     app.run(debug=True, port=5000)
+
+# For gunicorn
+app = create_app(os.getenv('FLASK_ENV', 'development'))

@@ -5,6 +5,5 @@ Flask-CORS==4.0.0
 Flask-Migrate==4.0.5
 python-dotenv==1.0.0
 bcrypt==4.1.1
-pytest==7.4.3
-# Optional for PostgreSQL production deployments:
-# psycopg2-binary==2.9.9
+gunicorn==21.2.0
+psycopg2-binary==2.9.9
