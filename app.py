@@ -29,6 +29,15 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
 
+    # Fix Render PostgreSQL SSL connection issues
+    db_url = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if db_url and 'postgres' in db_url:
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_size': 5,
+            'pool_recycle': 300,
+            'pool_pre_ping': True,
+        }
+
     # Initialize extensions with app
     db.init_app(app)
     jwt.init_app(app)
