@@ -29,10 +29,6 @@ class ProductionConfig(Config):
     SQLALCHEMY_DATABASE_URI = _db_url or None
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
-        'pool_recycle': 300,
-        'connect_args': {
-            'connect_timeout': 5,
-        },
     }
 
 class TestingConfig(Config):
