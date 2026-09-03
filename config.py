@@ -23,7 +23,14 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     """Production configuration"""
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    _raw_url = os.getenv('DATABASE_URL', '')
+    # Render provides postgres:// but SQLAlchemy 2.x needs postgresql://
+    SQLALCHEMY_DATABASE_URI = _raw_url.replace('postgres://', 'postgresql://', 1) if _raw_url else None
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 5,
+        'pool_recycle': 300,
+        'pool_pre_ping': True,
+    }
 
 class TestingConfig(Config):
     """Testing configuration"""
