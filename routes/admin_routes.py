@@ -3,6 +3,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 from models.user import User, UserRole
 from models.product import Product
+from models.order import Order, OrderItem
+from datetime import datetime, timedelta
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -134,10 +136,42 @@ def get_analytics():
     total_customers = User.query.filter_by(role=UserRole.CUSTOMER).count()
     total_providers = User.query.filter_by(role=UserRole.PROVIDER).count()
     total_products = Product.query.count()
-    
+
+    # Daily data for last 7 days
+    today = datetime.utcnow().date()
+    daily_orders = []
+    daily_users = []
+    day_labels = []
+
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        day_start = datetime.combine(day, datetime.min.time())
+        day_end = datetime.combine(day, datetime.max.time())
+
+        order_count = Order.query.filter(
+            Order.created_at >= day_start,
+            Order.created_at <= day_end
+        ).count()
+        revenue = db.session.query(db.func.coalesce(db.func.sum(Order.total_amount), 0)).filter(
+            Order.created_at >= day_start,
+            Order.created_at <= day_end,
+            Order.status.in_(['confirmed', 'shipped', 'delivered'])
+        ).scalar()
+        user_count = User.query.filter(
+            User.created_at >= day_start,
+            User.created_at <= day_end
+        ).count()
+
+        day_labels.append(day.strftime('%a'))
+        daily_orders.append({'orders': order_count, 'revenue': float(revenue)})
+        daily_users.append(user_count)
+
     return {
         'total_users': total_users,
         'total_customers': total_customers,
         'total_providers': total_providers,
-        'total_products': total_products
+        'total_products': total_products,
+        'daily_orders': daily_orders,
+        'daily_users': daily_users,
+        'day_labels': day_labels,
     }, 200

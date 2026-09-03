@@ -65,6 +65,11 @@ def create_app(config_name=None):
     def uploaded_product_image(filename):
         upload_folder = os.path.join(app.root_path, 'uploads', 'products')
         return send_from_directory(upload_folder, filename)
+
+    @app.route('/uploads/profiles/<path:filename>')
+    def uploaded_profile_image(filename):
+        upload_folder = os.path.join(app.root_path, 'uploads', 'profiles')
+        return send_from_directory(upload_folder, filename)
     
     # Create database tables
     with app.app_context():

@@ -5,6 +5,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 from models.user import User, UserRole
 from models.product import Product
+from models.order import Order, OrderItem
+from datetime import datetime, timedelta
 
 product_bp = Blueprint('products', __name__)
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads', 'products')
@@ -169,3 +171,56 @@ def delete_product(product_id):
     except Exception as e:
         db.session.rollback()
         return {'error': str(e)}, 500
+
+
+@product_bp.route('/analytics', methods=['GET'])
+@jwt_required()
+def get_provider_analytics():
+    """Get analytics for the current provider"""
+    user_id = int(get_jwt_identity())
+
+    products = Product.query.filter_by(provider_id=user_id).all()
+    product_ids = [p.id for p in products]
+    total_stock = sum(p.stock for p in products)
+    total_value = sum(p.price * p.stock for p in products)
+
+    # Daily orders & revenue for last 7 days
+    today = datetime.utcnow().date()
+    daily_data = []
+    day_labels = []
+
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        day_start = datetime.combine(day, datetime.min.time())
+        day_end = datetime.combine(day, datetime.max.time())
+
+        # Orders containing this provider's products
+        order_count = db.session.query(Order).join(OrderItem).filter(
+            OrderItem.product_id.in_(product_ids),
+            Order.created_at >= day_start,
+            Order.created_at <= day_end
+        ).distinct().count()
+
+        revenue = db.session.query(
+            db.func.coalesce(db.func.sum(OrderItem.unit_price * OrderItem.quantity), 0)
+        ).join(Order).filter(
+            OrderItem.product_id.in_(product_ids),
+            Order.created_at >= day_start,
+            Order.created_at <= day_end,
+            Order.status.in_(['confirmed', 'shipped', 'delivered'])
+        ).scalar()
+
+        day_labels.append(day.strftime('%a'))
+        daily_data.append({'orders': order_count, 'revenue': float(revenue)})
+
+    # Stock target
+    stock_rate = min(100, round((total_stock / (len(products) * 50)) * 100)) if products else 0
+
+    return {
+        'total_products': len(products),
+        'total_stock': total_stock,
+        'total_value': total_value,
+        'stock_rate': stock_rate,
+        'daily_data': daily_data,
+        'day_labels': day_labels,
+    }, 200

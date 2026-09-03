@@ -54,6 +54,7 @@ class OrderItem(db.Model):
             'id': self.id,
             'product_id': self.product_id,
             'product_name': product.name if product else '',
+            'product_image': product.image_path if product else None,
             'quantity': self.quantity,
             'unit_price': self.unit_price,
         }

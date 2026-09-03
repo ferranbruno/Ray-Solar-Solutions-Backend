@@ -1,10 +1,14 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
+from werkzeug.utils import secure_filename
 from extensions import db
 from models.user import User, UserRole
 from datetime import timedelta
+import os
 
 auth_bp = Blueprint('auth', __name__)
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads', 'profiles')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
@@ -87,15 +91,31 @@ def update_current_user():
     if not user:
         return {'error': 'User not found'}, 404
 
-    data = request.get_json()
-
     try:
-        if 'first_name' in data:
-            user.first_name = data['first_name']
-        if 'last_name' in data:
-            user.last_name = data['last_name']
-        if 'phone' in data:
-            user.phone = data['phone']
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            if 'first_name' in request.form:
+                user.first_name = request.form['first_name']
+            if 'last_name' in request.form:
+                user.last_name = request.form['last_name']
+            if 'phone' in request.form:
+                user.phone = request.form['phone']
+
+            profile_file = request.files.get('profile_image')
+            if profile_file and profile_file.filename:
+                from werkzeug.utils import secure_filename
+                import uuid
+                ext = profile_file.filename.rsplit('.', 1)[1].lower() if '.' in profile_file.filename else 'jpg'
+                filename = f"{uuid.uuid4().hex}.{ext}"
+                profile_file.save(os.path.join(UPLOAD_FOLDER, filename))
+                user.profile_image = f"uploads/profiles/{filename}"
+        else:
+            data = request.get_json() or {}
+            if 'first_name' in data:
+                user.first_name = data['first_name']
+            if 'last_name' in data:
+                user.last_name = data['last_name']
+            if 'phone' in data:
+                user.phone = data['phone']
 
         db.session.commit()
         return {'message': 'Profile updated', 'user': user.to_dict()}, 200
