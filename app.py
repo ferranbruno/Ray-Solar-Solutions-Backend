@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from config import config
 from extensions import db, jwt
@@ -45,9 +45,19 @@ def create_app(config_name=None):
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True
+        },
+        r"/uploads/*": {
+            "origins": get_allowed_frontend_origins(),
+            "methods": ["GET"],
         }
     })
     
+    # Serve uploaded files
+    @app.route('/uploads/<path:filename>')
+    def serve_upload(filename):
+        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+        return send_from_directory(upload_dir, filename)
+
     # Register blueprints
     from routes.auth_routes import auth_bp
     from routes.product_routes import product_bp
