@@ -1,3 +1,4 @@
+import io
 import os
 import time
 import hashlib
@@ -35,23 +36,25 @@ def _sign(params, api_secret):
     return hashlib.sha1((to_sign + api_secret).encode()).hexdigest()
 
 
-def _validate_file(file):
-    ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+def _validate_file(filename):
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'jpg'
     if ext not in ALLOWED_EXTENSIONS:
         raise ValueError('Only PNG, JPG, JPEG, and WEBP images are allowed')
     return ext
 
 
-def _save_local(file, folder='ray-solar'):
+def _save_local(filename, file_bytes):
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     timestamp = str(int(time.time()))
-    public_id = hashlib.md5(f'{timestamp}{file.filename}'.encode()).hexdigest()
-    ext = _validate_file(file)
-    filename = f'{public_id}_{secure_filename(file.filename.rsplit(".", 1)[0])}.{ext}'
-    filepath = os.path.join(UPLOAD_DIR, filename)
-    file.save(filepath)
+    public_id = hashlib.md5(f'{timestamp}{filename}'.encode()).hexdigest()
+    ext = _validate_file(filename)
+    safe_name = secure_filename(filename.rsplit('.', 1)[0])
+    out_filename = f'{public_id}_{safe_name}.{ext}'
+    filepath = os.path.join(UPLOAD_DIR, out_filename)
+    with open(filepath, 'wb') as f:
+        f.write(file_bytes)
     print(f'[LOCAL] Saved to {filepath}')
-    return f'uploads/products/{filename}'
+    return f'uploads/products/{out_filename}'
 
 
 def _delete_local(path):
@@ -68,43 +71,43 @@ def upload_image(file, folder='ray-solar'):
     if not file or not file.filename:
         raise ValueError('No file provided')
 
+    file_bytes = file.read()
+    filename = file.filename
+
     if _is_cloudinary_configured():
         try:
-            return _upload_cloudinary(file, folder)
+            cfg = _get_config()
+            _validate_file(filename)
+
+            timestamp = str(int(time.time()))
+            public_id = hashlib.md5(f'{timestamp}{filename}'.encode()).hexdigest()
+
+            params = {
+                'folder': folder,
+                'public_id': public_id,
+                'timestamp': timestamp,
+                'api_key': cfg['api_key'],
+                'signature': _sign(
+                    {'folder': folder, 'public_id': public_id, 'timestamp': timestamp, 'api_key': cfg['api_key']},
+                    cfg['api_secret'],
+                ),
+            }
+
+            print(f'[CLOUDINARY] Uploading to folder={folder}, public_id={public_id}')
+
+            result = requests.post(
+                f"https://api.cloudinary.com/v1_1/{cfg['cloud_name']}/image/upload",
+                data=params,
+                files={'file': (filename, io.BytesIO(file_bytes), file.content_type)},
+                timeout=30,
+            )
+            if result.ok:
+                return result.json()['secure_url']
+            print(f'[CLOUDINARY] Upload failed ({result.status_code}), falling back to local storage')
         except Exception as e:
             print(f'[CLOUDINARY] Upload failed, falling back to local storage: {e}')
-            file.stream.seek(0)
-            return _save_local(file, folder)
-    return _save_local(file, folder)
 
-
-def _upload_cloudinary(file, folder='ray-solar'):
-    cfg = _get_config()
-    _validate_file(file)
-
-    timestamp = str(int(time.time()))
-    public_id = hashlib.md5(f'{timestamp}{file.filename}'.encode()).hexdigest()
-
-    params = {
-        'folder': folder,
-        'public_id': public_id,
-        'timestamp': timestamp,
-    }
-    params['api_key'] = cfg['api_key']
-    params['signature'] = _sign(params, cfg['api_secret'])
-
-    print(f'[CLOUDINARY] Uploading to folder={folder}, public_id={public_id}')
-
-    result = requests.post(
-        f"https://api.cloudinary.com/v1_1/{cfg['cloud_name']}/image/upload",
-        data=params,
-        files={'file': (file.filename, file.stream, file.content_type)},
-        timeout=30,
-    )
-    if not result.ok:
-        print(f'[CLOUDINARY ERROR] {result.status_code} {result.text}')
-    result.raise_for_status()
-    return result.json()['secure_url']
+    return _save_local(filename, file_bytes)
 
 
 def delete_image(url):
@@ -127,9 +130,9 @@ def _delete_cloudinary(url):
         params = {
             'public_id': public_id,
             'timestamp': timestamp,
+            'api_key': cfg['api_key'],
+            'signature': _sign({'public_id': public_id, 'timestamp': timestamp, 'api_key': cfg['api_key']}, cfg['api_secret']),
         }
-        params['api_key'] = cfg['api_key']
-        params['signature'] = _sign(params, cfg['api_secret'])
 
         result = requests.post(
             f"https://api.cloudinary.com/v1_1/{cfg['cloud_name']}/image/destroy",
