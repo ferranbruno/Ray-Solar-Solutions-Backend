@@ -42,17 +42,4 @@ class User(db.Model):
             self.password_hash.encode('utf-8')
         )
     
-    def to_dict(self):
-        """Convert user to dictionary"""
-        return {
-            'id': self.id,
-            'email': self.email,
-            'first_name': self.first_name,
-            'last_name': self.last_name,
-            'phone': self.phone,
-            'profile_image': self.profile_image,
-            'email_verified': self.email_verified,
-            'role': self.role.value,
-            'is_active': self.is_active,
-            'created_at': self.created_at.isoformat(),
-        }
+   
