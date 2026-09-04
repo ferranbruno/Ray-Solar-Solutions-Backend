@@ -59,8 +59,8 @@ def create_product():
         user_id = int(get_jwt_identity())
         user = User.query.get(user_id)
 
-        if not user or user.role != UserRole.PROVIDER:
-            return {'error': 'Only providers can create products'}, 403
+        if not user or user.role not in (UserRole.PROVIDER, UserRole.ADMIN):
+            return {'error': 'Only providers and admins can create products'}, 403
 
         name = request.form.get('name')
         price = request.form.get('price')
@@ -104,12 +104,13 @@ def update_product(product_id):
     """Update product (provider only)"""
     try:
         user_id = int(get_jwt_identity())
+        user = User.query.get(user_id)
         product = Product.query.get(product_id)
 
         if not product:
             return {'error': 'Product not found'}, 404
 
-        if product.provider_id != user_id:
+        if product.provider_id != user_id and (not user or user.role != UserRole.ADMIN):
             return {'error': 'You can only update your own products'}, 403
 
         if request.form.get('name'):
@@ -151,12 +152,13 @@ def delete_product(product_id):
     """Delete product (provider only)"""
     try:
         user_id = int(get_jwt_identity())
+        user = User.query.get(user_id)
         product = Product.query.get(product_id)
 
         if not product:
             return {'error': 'Product not found'}, 404
 
-        if product.provider_id != user_id:
+        if product.provider_id != user_id and (not user or user.role != UserRole.ADMIN):
             return {'error': 'You can only delete your own products'}, 403
 
         if product.image_path:
