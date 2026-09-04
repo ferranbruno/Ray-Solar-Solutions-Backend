@@ -28,15 +28,24 @@ def upload_image(file, folder='ray-solar'):
         raise ValueError('Only PNG, JPG, JPEG, and WEBP images are allowed')
 
     import time, hashlib
-    public_id = f"{folder}/{hashlib.md5(f'{time.time()}{file.filename}'.encode()).hexdigest()}"
+    timestamp = str(int(time.time()))
+    public_id = f"{folder}/{hashlib.md5(f'{timestamp}{file.filename}'.encode()).hexdigest()}"
+
+    params = {
+        'folder': folder,
+        'public_id': public_id,
+        'overwrite': 'true',
+        'timestamp': timestamp,
+    }
+    to_sign = '&'.join(f'{k}={v}' for k, v in sorted(params.items())) + cfg['api_secret']
+    signature = hashlib.sha1(to_sign.encode()).hexdigest()
+
+    params['api_key'] = cfg['api_key']
+    params['signature'] = signature
 
     result = requests.post(
         f"https://api.cloudinary.com/v1_1/{cfg['cloud_name']}/image/upload",
-        data={
-            'api_key': cfg['api_key'],
-            'public_id': public_id,
-            'overwrite': 'true',
-        },
+        data=params,
         files={'file': (file.filename, file.stream, file.content_type)},
         timeout=30,
     )
