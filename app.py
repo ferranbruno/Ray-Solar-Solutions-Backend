@@ -52,11 +52,11 @@ def create_app(config_name=None):
         }
     })
     
-    # Serve uploaded files
+    # Serve uploaded files from static/uploads
     @app.route('/uploads/<path:filename>')
     def serve_upload(filename):
-        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-        return send_from_directory(upload_dir, filename)
+        static_uploads = os.path.join(app.static_folder, 'uploads')
+        return send_from_directory(static_uploads, filename)
 
     # Register blueprints
     from routes.auth_routes import auth_bp
