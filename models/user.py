@@ -42,7 +42,7 @@ class User(db.Model):
             self.password_hash.encode('utf-8')
         )
 
- def to_dict(self):
+    def to_dict(self):
         """Convert user to dictionary"""
         return {
             'id': self.id,
