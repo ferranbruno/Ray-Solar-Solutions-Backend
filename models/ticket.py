@@ -22,7 +22,7 @@ class Ticket(db.Model):
 
     customer = db.relationship('User', backref='tickets')
     
-  def to_dict(self):
+    def to_dict(self):
         return {
             'id': self.id,
             'customer_id': self.customer_id,
