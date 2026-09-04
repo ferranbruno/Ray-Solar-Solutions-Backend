@@ -1,4 +1,6 @@
 import os
+import time
+import hashlib
 import requests
 
 
@@ -11,14 +13,17 @@ def _get_config():
 
 
 def init_cloudinary():
-    """Validate Cloudinary env vars are set"""
     cfg = _get_config()
     if not all(cfg.values()):
         print('[CLOUDINARY] Warning: missing env vars, uploads will fail')
 
 
+def _sign(params, api_secret):
+    to_sign = '&'.join(f'{k}={params[k]}' for k in sorted(params.keys()))
+    return hashlib.sha1((to_sign + api_secret).encode()).hexdigest()
+
+
 def upload_image(file, folder='ray-solar'):
-    """Upload an image to Cloudinary via REST API"""
     cfg = _get_config()
     if not all(cfg.values()):
         raise ValueError('Cloudinary not configured')
@@ -27,21 +32,16 @@ def upload_image(file, folder='ray-solar'):
     if ext not in ('png', 'jpg', 'jpeg', 'webp'):
         raise ValueError('Only PNG, JPG, JPEG, and WEBP images are allowed')
 
-    import time, hashlib
     timestamp = str(int(time.time()))
-    public_id = f"{folder}/{hashlib.md5(f'{timestamp}{file.filename}'.encode()).hexdigest()}"
+    public_id = hashlib.md5(f'{timestamp}{file.filename}'.encode()).hexdigest()
 
     params = {
         'folder': folder,
         'public_id': public_id,
-        'overwrite': 'true',
         'timestamp': timestamp,
     }
-    to_sign = '&'.join(f'{k}={v}' for k, v in sorted(params.items())) + cfg['api_secret']
-    signature = hashlib.sha1(to_sign.encode()).hexdigest()
-
     params['api_key'] = cfg['api_key']
-    params['signature'] = signature
+    params['signature'] = _sign(params, cfg['api_secret'])
 
     result = requests.post(
         f"https://api.cloudinary.com/v1_1/{cfg['cloud_name']}/image/upload",
@@ -49,33 +49,33 @@ def upload_image(file, folder='ray-solar'):
         files={'file': (file.filename, file.stream, file.content_type)},
         timeout=30,
     )
-    result.raise_for_status()
+    if not result.ok:
+        print(f'[CLOUDINARY ERROR] {result.status_code} {result.text}')
+        result.raise_for_status()
     return result.json()['secure_url']
 
 
 def delete_image(url):
-    """Delete an image from Cloudinary via REST API"""
     cfg = _get_config()
     if not url or not url.startswith('http') or not all(cfg.values()):
         return False
     try:
         parts = url.split('/')
         idx = next(i for i, p in enumerate(parts) if p == 'upload')
-        public_id_with_ext = '/'.join(parts[idx + 1:])
-        public_id = public_id_with_ext.rsplit('.', 1)[0]
+        path = '/'.join(parts[idx + 1:])
+        public_id = path.rsplit('.', 1)[0]
 
-        import hashlib
-        timestamp = str(int(__import__('time').time()))
-        signature = hashlib.sha1(f"public_id={public_id}&timestamp={timestamp}{cfg['api_secret']}".encode()).hexdigest()
+        timestamp = str(int(time.time()))
+        params = {
+            'public_id': public_id,
+            'timestamp': timestamp,
+        }
+        params['api_key'] = cfg['api_key']
+        params['signature'] = _sign(params, cfg['api_secret'])
 
         result = requests.post(
             f"https://api.cloudinary.com/v1_1/{cfg['cloud_name']}/image/destroy",
-            data={
-                'public_id': public_id,
-                'api_key': cfg['api_key'],
-                'timestamp': timestamp,
-                'signature': signature,
-            },
+            data=params,
             timeout=15,
         )
         return result.json().get('result') == 'ok'
