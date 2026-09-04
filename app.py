@@ -72,6 +72,27 @@ def create_app(config_name=None):
                 db.create_all()
             except Exception:
                 pass
+
+    # Seed admin user on first run
+    with app.app_context():
+        try:
+            from models.user import User, UserRole
+            admin_email = os.getenv('ADMIN_EMAIL', 'admin@raysolar.co')
+            admin_password = os.getenv('ADMIN_PASSWORD', '')
+            if admin_password and not User.query.filter_by(email=admin_email).first():
+                admin = User(
+                    email=admin_email,
+                    first_name='Admin',
+                    last_name='User',
+                    role=UserRole.ADMIN,
+                    email_verified=True,
+                )
+                admin.set_password(admin_password)
+                db.session.add(admin)
+                db.session.commit()
+                print(f'[SEED] Admin user created: {admin_email}')
+        except Exception:
+            pass
     
     return app
 
