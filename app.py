@@ -55,7 +55,7 @@ def create_app(config_name=None):
     # Serve uploaded files from static/uploads
     @app.route('/uploads/<path:filename>')
     def serve_upload(filename):
-        static_uploads = os.path.join(app.static_folder, 'uploads')
+        static_uploads = os.path.join(app.root_path, 'static', 'uploads')
         return send_from_directory(static_uploads, filename)
 
     # Register blueprints
