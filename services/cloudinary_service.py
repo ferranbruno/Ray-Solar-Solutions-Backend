@@ -69,7 +69,12 @@ def upload_image(file, folder='ray-solar'):
         raise ValueError('No file provided')
 
     if _is_cloudinary_configured():
-        return _upload_cloudinary(file, folder)
+        try:
+            return _upload_cloudinary(file, folder)
+        except Exception as e:
+            print(f'[CLOUDINARY] Upload failed, falling back to local storage: {e}')
+            file.stream.seek(0)
+            return _save_local(file, folder)
     return _save_local(file, folder)
 
 
