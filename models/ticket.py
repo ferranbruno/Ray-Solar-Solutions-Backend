@@ -22,13 +22,4 @@ class Ticket(db.Model):
 
     customer = db.relationship('User', backref='tickets')
 
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'customer_id': self.customer_id,
-            'subject': self.subject,
-            'message': self.message,
-            'status': self.status.value,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
-        }
+   
