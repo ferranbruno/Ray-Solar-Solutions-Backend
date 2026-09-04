@@ -69,7 +69,7 @@ def create_product():
 
         image_file = request.files.get('image')
 
-        image_url = upload_image(image_file, folder='ray-solar/products')
+        image_url = upload_image(image_file, folder='ray-solar/products') if image_file and image_file.filename else None
         product = Product(
             name=name,
             category=request.form.get('category', ''),
