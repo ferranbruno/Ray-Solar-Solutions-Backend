@@ -22,6 +22,7 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
 @admin_bp.route('/users', methods=['GET'])
 @admin_required
 def get_all_users():
