@@ -10,18 +10,18 @@ class OrderStatus(Enum):
     DELIVERED = 'delivered'
     CANCELLED = 'cancelled'
 
-# class Order(db.Model):
-#     __tablename__ = 'orders'
+class Order(db.Model):
+    __tablename__ = 'orders'
     
-#     id = db.Column(db.Integer, primary_key=True)
-#     order_number = db.Column(db.String(50), unique=True, nullable=False)
-#     customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-#     status = db.Column(db.Enum(OrderStatus), default=OrderStatus.PENDING)
-#     total_amount = db.Column(db.Float, nullable=False)
-#     shipping_address = db.Column(db.Text, nullable=True)
-#     notes = db.Column(db.Text, nullable=True)
-#     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-#     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)
+    order_number = db.Column(db.String(50), unique=True, nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    status = db.Column(db.Enum(OrderStatus), default=OrderStatus.PENDING)
+    total_amount = db.Column(db.Float, nullable=False)
+    shipping_address = db.Column(db.Text, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     order_items = db.relationship('OrderItem', backref='order', lazy=True, cascade='all, delete-orphan')
